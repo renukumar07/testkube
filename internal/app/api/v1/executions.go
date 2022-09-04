@@ -345,7 +345,7 @@ func (s *TestkubeAPI) ExecutionLogsHandler() fiber.Handler {
 				return
 			}
 
-			s.streamLogsFromJob(executionID, w)
+			s.streamLogsFromJob(&execution, w)
 		}))
 
 		return nil
@@ -559,11 +559,11 @@ func (s *TestkubeAPI) streamLogsFromResult(executionResult *testkube.ExecutionRe
 }
 
 // streamLogsFromJob streams logs in chunks to writer from the running execution
-func (s *TestkubeAPI) streamLogsFromJob(executionID string, w *bufio.Writer) {
+func (s *TestkubeAPI) streamLogsFromJob(execution *testkube.Execution, w *bufio.Writer) {
 	enc := json.NewEncoder(w)
 	s.Log.Debug("getting logs from Kubernetes job")
 
-	logs, err := s.Executor.Logs(executionID)
+	logs, err := s.Executor.Logs(execution)
 	s.Log.Debugw("waiting for jobs channel", "channelSize", len(logs))
 	if err != nil {
 		output.PrintError(os.Stdout, err)
@@ -674,7 +674,7 @@ func (s *TestkubeAPI) GetLatestExecutionLogs(c context.Context) (map[string][]st
 
 	executionLogs := map[string][]string{}
 	for _, e := range latestExecutions {
-		logs, err := s.getExecutionLogs(e)
+		logs, err := s.getExecutionLogs(&e)
 		if err != nil {
 			return nil, fmt.Errorf("could not get logs: %w", err)
 		}
@@ -695,13 +695,13 @@ func (s *TestkubeAPI) getNewestExecutions(c context.Context) ([]testkube.Executi
 }
 
 // getExecutionLogs returns logs from an execution
-func (s *TestkubeAPI) getExecutionLogs(execution testkube.Execution) ([]string, error) {
+func (s *TestkubeAPI) getExecutionLogs(execution *testkube.Execution) ([]string, error) {
 	result := []string{}
 	if execution.ExecutionResult.IsCompleted() {
 		return append(result, execution.ExecutionResult.Output), nil
 	}
 
-	logs, err := s.Executor.Logs(execution.Id)
+	logs, err := s.Executor.Logs(execution)
 	if err != nil {
 		return []string{}, fmt.Errorf("could not get logs for execution %s: %w", execution.Id, err)
 	}
