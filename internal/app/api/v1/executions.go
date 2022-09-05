@@ -295,8 +295,15 @@ func (s TestkubeAPI) ExecutionLogsStreamHandler() fiber.Handler {
 		l := s.Log.With("executionID", executionID)
 
 		l.Debugw("getting pod logs and passing to websocket", "id", c.Params("id"), "locals", c.Locals, "remoteAddr", c.RemoteAddr(), "localAddr", c.LocalAddr())
-
-		logs, err := s.Executor.Logs(executionID)
+		execution, err := s.ExecutionResults.Get(context.Background(), executionID)
+		if err != nil {
+			execution, err = s.ExecutionResults.GetByName(context.Background(), executionID)
+			if err != nil {
+				l.Errorw("can't get execution", "error", err)
+				return
+			}
+		}
+		logs, err := s.Executor.Logs(&execution)
 		if err != nil {
 			l.Errorw("can't get pod logs", "error", err)
 			c.Conn.Close()
